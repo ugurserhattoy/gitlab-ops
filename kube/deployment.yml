@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-bulks-api
+  namespace: $NAMESPACE
+spec:
+  replicas: $REPLICA
+  selector:
+    matchLabels:
+      app: gitlab-bulks-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 40%
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: gitlab-bulks-api
+    spec:
+      containers:
+      - name: gitlab-bulks-api
+        image: $CI_REGISTRY_IMAGE:latest
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5001
+      imagePullSecrets:
+      - name: gitlab-bulks-secret      
