@@ -1,10 +1,11 @@
 import inquirer
+import os
 import ProjectOps, AuthOps
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE = "http://127.0.0.1:5001/"
+BASE = os.getenv('BASE')
 
 json_data = []
 json_list = {}
