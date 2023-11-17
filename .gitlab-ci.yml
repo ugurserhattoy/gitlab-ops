@@ -1,0 +1,59 @@
+stages:
+  - build
+  - deploy-test
+  # - deploy
+
+.login: &login |
+  docker login -u $REG_USER -p $REG_PASS $CI_REGISTRY_IMAGE
+
+.push: &push |
+  docker push $CI_REGISTRY_IMAGE:latest
+
+build:
+  stage: build
+  image: docker:20.10.23
+  allow_failure: false
+  script:
+    - *login
+    - docker build . -t $CI_REGISTRY_IMAGE:latest
+    - echo $CI_REGISTRY_IMAGE
+    - echo $CI_PROJECT_NAME
+    - echo $CI_PIPELINE_ID
+    - echo $CI_PIPELINE_IID
+    - *push
+  tags:
+    - docker
+  when: manual
+  only:
+    changes:
+      - Dockerfile
+      - api/*
+      - requirements.txt
+
+deploy-test:
+  stage: deploy-test
+  image: <KUBECTL_IMAGE>
+  allow_failure: false
+  variables:
+    REPLICA: 1
+    NAMESPACE: gitlab-ops
+    ING_HOST: <ING_HOST>
+  environment:
+    name: <ENV_SCOPE>/gitlab-ops
+    kubernetes:
+      namespace: gitlab-ops
+  before_script:
+    - kubectl create secret docker-registry dockerhub-secret --docker-username=$DOCKER_USER --docker-password=$DOCKER_PW -n $NAMESPACE || true
+    - kubectl create secret docker-registry gitlab-ops-secret --docker-server=$CI_REGISTRY --docker-username=$REG_USER --docker-password=$REG_PASS -n $NAMESPACE || true
+  script:
+    - cat kube/deployment.yml | envsubst | kubectl apply --record=true -f -
+    - cat kube/service.yml | envsubst | kubectl apply --record=true -f -
+    - cat kube/ingress.yml | envsubst | kubectl apply --record=true -f -
+  after_script:
+    - kubectl rollout restart deployment/gitlab-ops-api -n $NAMESPACE
+    - kubectl rollout status deployment/gitlab-ops-api -n $NAMESPACE
+  tags:
+    - k8s
+  only:
+    - main
+  when: manual

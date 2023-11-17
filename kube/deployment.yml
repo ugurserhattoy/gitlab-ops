@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gitlab-bulks-api
+  name: gitlab-ops-api
   namespace: $NAMESPACE
 spec:
   replicas: $REPLICA
   selector:
     matchLabels:
-      app: gitlab-bulks-api
+      app: gitlab-ops-api
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -16,10 +16,10 @@ spec:
   template:
     metadata:
       labels:
-        app: gitlab-bulks-api
+        app: gitlab-ops-api
     spec:
       containers:
-      - name: gitlab-bulks-api
+      - name: gitlab-ops-api
         image: $CI_REGISTRY_IMAGE:latest
         resources:
           limits:
@@ -28,4 +28,4 @@ spec:
         ports:
         - containerPort: 5001
       imagePullSecrets:
-      - name: gitlab-bulks-secret      
+      - name: gitlab-ops-secret

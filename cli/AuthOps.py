@@ -7,6 +7,7 @@ class AuthOps:
         self.BASE = BASE
     
     def user_login(self):
+        print()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         while True:    
             questions = [
@@ -16,13 +17,11 @@ class AuthOps:
             answers = inquirer.prompt(questions) #Dict
             user = answers.get('user')
             password = answers.get('password')
-            
             response = requests.post(url=self.BASE + "token",
                                     data={'username': user, 
                                         'password': password},
                                     headers=headers)
-            print(response.status_code)
-            
+            # print(str(response.status_code)+": "+response.json())
             if response.status_code == 200:
                 break
             else:
@@ -31,7 +30,6 @@ class AuthOps:
                 print()
             
         TOKN=str(response.json()['access_token'])
-        
         return TOKN
         
         
@@ -43,9 +41,7 @@ class AuthOps:
             inquirer.Text("token", message="Private Token"),
         ]
         answers = inquirer.prompt(questions)
-        
         print(answers)
-        
         response = requests.post(url=self.BASE + "register",
                                  json={'username': answers.get('user'), 
                                        'password': answers.get('password'),

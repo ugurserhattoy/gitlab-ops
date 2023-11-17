@@ -33,7 +33,7 @@ def login_screen():
         login_screen()
     return TOKN
 TOKN = login_screen()
-ProjectList = ProjectOps.ProjectsList(BASE, json_list,TOKN)
+ProjectList = ProjectOps.ProjectsList(BASE, json_list, TOKN)
 
 print("")
 print("Welcome!")
@@ -41,7 +41,6 @@ def main():
     check_project_list('main')
     welcome_menu()
     
-
 def check_project_list(area):
     if json_list:
         ProjectList.db_check(area)

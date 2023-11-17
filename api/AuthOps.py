@@ -4,12 +4,24 @@ from pydantic import BaseModel
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
-import sqlite3
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 SECRET_KEY = "YOUR_SECRET_KEY_HERE"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-DATABASE_NAME = "users.db"
+MONGO_URI = os.getenv('MONGO_URI')
+DATABASE_NAME = os.getenv('DATABASE_NAME')
+COLLECTION_NAME = os.getenv('COLLECTION_NAME')
+
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME] # type: ignore
+collection = db[COLLECTION_NAME] # type: ignore
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -27,17 +39,6 @@ class TokenData(BaseModel):
 
 class Authentication:
     @staticmethod
-    def initDb():
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS users 
-                    (username TEXT PRIMARY KEY NOT NULL, 
-                    hashed_password TEXT NOT NULL, 
-                    private_token TEXT NOT NULL)''')
-        conn.commit()
-        conn.close()
-    
-    @staticmethod
     def verify_password(plain_password, hashed_password):
         return pwd_context.verify(plain_password, hashed_password)
 
@@ -47,28 +48,32 @@ class Authentication:
 
     @staticmethod
     def get_user(username: str):
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username=?", (username,))
-        user = cursor.fetchone()
-        conn.close()
-        if user:
-            user_dict = {
-                "username": user[0],
-                "hashed_password": user[1],
-                "private_token": user[2]
-            }
-            return user_dict
-        return None
+        return collection.find_one({"username": username})
 
     @staticmethod
-    def create_user(user: User):
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, hashed_password, private_token) VALUES (?, ?, ?)",
-                    (user.username, Authentication.get_password_hash(user.password), user.private_token))
-        conn.commit()
-        conn.close()
+    def create_user(user: User) -> str:
+        # Convert the Pydantic model to a dictionary and insert it into MongoDB
+        user.password = Authentication.get_password_hash(user.password)
+        user_dict = user.model_dump()
+        result = collection.insert_one(user_dict)
+        # Return the string of the inserted_id
+        return str(result.inserted_id)
+    
+    @staticmethod
+    def get_user_by_id(user_id: str) -> dict:
+        # Find a user in the MongoDB collection by _id
+        return collection.find_one({"_id": ObjectId(user_id)})
+    
+    @staticmethod
+    def update_user(user_id: str, user: User):
+        # MongoDB: Update user data in the users collection by user_id
+        update_data = user.model_dump(exclude_unset=True)
+        collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+    
+    @staticmethod
+    def delete_user(user_id: str):
+        # MongoDB: Delete a user from the users collection by user_id
+        collection.delete_one({"_id": ObjectId(user_id)})
 
     @staticmethod
     async def register(user: User):
@@ -83,12 +88,12 @@ class Authentication:
         user = Authentication.get_user(form_data.username)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, 
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password"
             )
-        if not Authentication.verify_password(form_data.password, user["hashed_password"]):
+        if not Authentication.verify_password(form_data.password, user["password"]):
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, 
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password"
             )
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

@@ -29,14 +29,23 @@ class ProjectsList:
                 print(id_list[i] + " is not number")
 
     def clean_project_list(self):
-        response = requests.delete(url = self.BASE + "projectlist")
-        self.json_list.clear()
-        return response
+        response = requests.delete(url = self.BASE + "projectlist", headers=self.TOKN)
+        if response.status_code == 200:
+            self.json_list.clear()
+            print()
+            print("List is cleared!")
+            print()
+            return response
+        else:
+            print()
+            print("Something's wrong: "+str(response.json()))
+            print()
+            return response
                            
     def db_check(self, area):###
         print("")
         print("-------------------------------------------------------------------------------------------")
-        # print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('____', '________', "___________PROJE_LISTESI___________", '____________________', '____________________'))
+        # print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('____', '________', "___________PROJECT_LIST___________", '____________________', '____________________'))
         print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('', '', "PROJE LISTESI", '', ''))
         if area=="mr":
             print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20} {5: ^20}".format('----', '--------', "-----------------------------------", '--------------------', '--------------------', '--------------------'))

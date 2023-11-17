@@ -18,7 +18,6 @@ project_list = {}
 ProjectListFunction = ProjectListFuncs(gl, project_list)
 SetThings = SetThingsUp(gl)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-Authentication.initDb()
 app = FastAPI()
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
@@ -63,7 +62,8 @@ async def put_project_list(query: ProjectListQuery, current_user: User = Depends
 
 @app.delete("/projectlist")
 async def delete_project_list(current_user: User = Depends(Authentication.get_current_user)):
-    project_list.clear()
+    response = project_list.clear()
+    return response
 
 @app.put("/projectlist/{setting}")
 async def update_something(setting: str, query: ProjectListQuery, current_user: User = Depends(Authentication.get_current_user)):
@@ -84,4 +84,4 @@ async def delete_something(setting: str, query: ProjectListQuery, current_user: 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5001)
+    uvicorn.run(app, host="0.0.0.0", port=5001) #log_level="debug"
