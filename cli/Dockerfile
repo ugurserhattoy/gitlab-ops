@@ -1,8 +1,12 @@
-FROM python:3.9-slim-bullseye
+FROM python:3.9-alpine
 
-RUN apt update && \
-    apt install vim unzip -y
-
+# RUN apk add --no-cache ca-certificates && update-ca-certificates
+RUN apk update && apk upgrade --no-cache
+RUN apk add --no-cache \
+    curl \
+    unzip \
+    vim
+    
 COPY ./requirements.txt /tmp/
 
 RUN python -m pip install --no-cache-dir --upgrade pip && \
