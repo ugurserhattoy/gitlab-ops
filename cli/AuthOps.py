@@ -8,7 +8,7 @@ class AuthOps:
     
     def user_login(self):
         print()
-        print("Login your user or leave it blank to go back...")
+        print("Login or leave it blank to go back...")
         print()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         while True:    
