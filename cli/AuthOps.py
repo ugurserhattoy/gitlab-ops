@@ -8,6 +8,8 @@ class AuthOps:
     
     def user_login(self):
         print()
+        print("Login your user or leave it blank to go back...")
+        print()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         while True:    
             questions = [
@@ -17,6 +19,8 @@ class AuthOps:
             answers = inquirer.prompt(questions) #Dict
             user = answers.get('user')
             password = answers.get('password')
+            if user == "" or user.isspace():
+                return "NO"
             response = requests.post(url=self.BASE + "token",
                                     data={'username': user, 
                                         'password': password},
@@ -41,15 +45,19 @@ class AuthOps:
             inquirer.Text("token", message="Private Token"),
         ]
         answers = inquirer.prompt(questions)
-        print(answers)
+        for key, value in answers.items():
+            if not value or ' ' in value:
+                return False
+        # print(answers)
         response = requests.post(url=self.BASE + "register",
                                  json={'username': answers.get('user'), 
                                        'password': answers.get('password'),
                                        'private_token': answers.get('token')},
                                  headers=headers)
         print(response.json())
-        print(response.status_code)
-        print(response)
+        # print(response.status_code)
+        # print(response)
+        return True
         
     def me_check(self, TOKN):
         response = requests.get(url=self.BASE + "users/me",

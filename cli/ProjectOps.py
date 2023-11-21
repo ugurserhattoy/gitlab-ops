@@ -1,24 +1,44 @@
-# ProjectList class
 import requests
+import threading
+import time
+from tqdm import tqdm
 
 class ProjectsList:
     # ProjectList class
     def __init__(self, BASE, json_list, TOKN):
-        self.json_list = json_list
-        self.BASE = BASE
-        self.TOKN = {"Authorization": f"Bearer {TOKN}"}
+        self.json_list     = json_list
+        self.BASE          = BASE
+        self.TOKN          = {"Authorization": f"Bearer {TOKN}"}
+        self.stop_progress = False
     
+    def show_progress(self):
+        with tqdm(total=100) as pbar:
+            while not self.stop_progress:
+                # Sleep for a short interval; this could be tuned as per the expected response time
+                time.sleep(0.5)
+                pbar.update(1)  # Increment the progress bar
+
+            # Ensure the progress bar reaches 100% when the process is done
+            pbar.n = 100
+            pbar.refresh()
+
     def append_projects_by_group_path(self, group):###
+        progress_thread = threading.Thread(target=self.show_progress)
+        progress_thread.start()
+        
         response = requests.put(url = self.BASE + "projectlist",
                                 json={'group': group},
                                 headers=self.TOKN,)
         response = response.json()
+        # Update json list
         for k in response.keys():
             self.json_list[k] = response[k]
             # print(self.json_list)
+        self.stop_progress = True
+        progress_thread.join()
                 
     def append_projects_by_id(self, id_list):##
-        for i in range(len(id_list)):
+        for i in tqdm(range(len(id_list))):
             if id_list[i].isdigit():
                 response = requests.put(url = self.BASE + "projectlist",
                                         json={'id': id_list[i]},
@@ -46,7 +66,7 @@ class ProjectsList:
         print("")
         print("-------------------------------------------------------------------------------------------")
         # print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('____', '________', "___________PROJECT_LIST___________", '____________________', '____________________'))
-        print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('', '', "PROJE LISTESI", '', ''))
+        print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20}".format('', '', "PROJECT LIST", '', ''))
         if area=="mr":
             print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20} {5: ^20}".format('----', '--------', "-----------------------------------", '--------------------', '--------------------', '--------------------'))
             print("{0: <4} {1: ^8} {2: ^35} {3: ^20} {4: ^20} {5: ^20}".format('LINE', 'ID', 'NAME', 'SQUASH OPTION', 'ALLOW MR ONLY IADR', 'RM BRANCH'))
@@ -73,10 +93,6 @@ class ProjectsList:
             else:    
                 print("{0: <4} {1: ^8} {2: <35} {3: ^20} {4: ^20}".format(line_number, proje, self.json_list[proje]['name'], self.json_list[proje]['defBranch'], self.json_list[proje]['url']))
             line_number += 1
-            
-            # print("{%s: >20} {%s: >20} {%s: >20} {%s: >20}".format() % (proje, p.name, p.default_branch, p.attributes['web_url']))
-            # p = self.gl.projects.get(proje)
-            # print("id: %s    name: %s     default branch: %s    url: %s".format() % (proje, p.name, p.default_branch, p.attributes['web_url']))
         print("")
 
     def protect_a_branch(self, input):
@@ -97,7 +113,7 @@ class ProjectsList:
         i = 1
         line_list = list(map(int, user_input.split()))
         keys_to_delete = []
-        for key in self.json_list.keys():
+        for key in tqdm(self.json_list.keys()):
             if i in line_list:
                 keys_to_delete.append(key)
             i += 1

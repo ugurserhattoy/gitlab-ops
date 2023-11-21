@@ -1,28 +1,27 @@
+import os
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import jwt
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
-SECRET_KEY = "YOUR_SECRET_KEY_HERE"
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-MONGO_URI = os.getenv('MONGO_URI')
-DATABASE_NAME = os.getenv('DATABASE_NAME')
+SECRET_KEY      = "YOUR_SECRET_KEY_HERE"
+ALGORITHM       = "HS256"
+MONGO_URI       = os.getenv('MONGO_URI')
+DATABASE_NAME   = os.getenv('DATABASE_NAME')
 COLLECTION_NAME = os.getenv('COLLECTION_NAME')
 
-client = MongoClient(MONGO_URI)
-db = client[DATABASE_NAME] # type: ignore
-collection = db[COLLECTION_NAME] # type: ignore
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+client        = MongoClient(MONGO_URI)
+db            = client[DATABASE_NAME] # type: ignore
+collection    = db[COLLECTION_NAME] # type: ignore
+pwd_context   = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class User(BaseModel):
@@ -54,6 +53,7 @@ class Authentication:
     def create_user(user: User) -> str:
         # Convert the Pydantic model to a dictionary and insert it into MongoDB
         user.password = Authentication.get_password_hash(user.password)
+        # user.private_token = Authentication.get_password_hash(user.private_token)
         user_dict = user.model_dump()
         result = collection.insert_one(user_dict)
         # Return the string of the inserted_id

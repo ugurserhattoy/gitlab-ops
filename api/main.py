@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+import os
+import gitlab
+from fastapi import FastAPI, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from ProjectListOp import ProjectListFuncs
@@ -6,19 +8,18 @@ from SetThingsUp import SetThingsUp
 from dotenv import load_dotenv
 from typing import List
 from AuthOps import Authentication, User, Token, OAuth2PasswordRequestForm
-import os
-import gitlab
+from TerraOps import TerraOps
 
 # Environment variables
 load_dotenv()
 
 gl = gitlab.Gitlab(url=os.getenv('GLAB_URL'), private_token=os.getenv('PRIVATE_TOKEN'))
 gl.auth()
-project_list = {}
+project_list        = {}
 ProjectListFunction = ProjectListFuncs(gl, project_list)
-SetThings = SetThingsUp(gl)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-app = FastAPI()
+SetThings           = SetThingsUp(gl)
+oauth2_scheme       = OAuth2PasswordBearer(tokenUrl="token")
+app                 = FastAPI()
 
 @app.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: User):
@@ -36,9 +37,10 @@ def init_gitlab(token: str):
     gl = gitlab.Gitlab(url=os.getenv('GLAB_URL'), private_token=token)
     gl.auth()
     return gl
-   
+
+### Project list part starts
 class ProjectListQuery(BaseModel):
-    id: int = None
+    id: int    = None
     group: str = None
     ppath: str = None
     idList: List[int] = []
@@ -61,7 +63,7 @@ async def put_project_list(query: ProjectListQuery, current_user: User = Depends
         return project_list
 
 @app.delete("/projectlist")
-async def delete_project_list(current_user: User = Depends(Authentication.get_current_user)):
+async def clean_project_list(current_user: User = Depends(Authentication.get_current_user)):
     response = project_list.clear()
     return response
 
@@ -81,6 +83,31 @@ async def delete_something(setting: str, query: ProjectListQuery, current_user: 
         return response
     else:
         raise HTTPException(status_code=405, detail="Method Not Allowed")
+
+### terraform part starts
+@app.get("/terraform/{search_string}")
+async def find_terra_states(search_string: str, full_path: str = Body(..., embed=True), current_user: User = Depends(Authentication.get_current_user)):
+    Terra = TerraOps(current_user["private_token"])
+    response = Terra.find_terraform_state(search_string, full_path)
+    return response
+
+@app.put("/terraform/lock")
+async def lock_terra_state(state_id: str = Body(..., embed=True), current_user: User = Depends(Authentication.get_current_user)):
+    Terra = TerraOps(current_user["private_token"])
+    response = Terra.lock_terraform_state(state_id)
+    return response
+
+@app.put("/terraform/unlock")
+async def unlock_terra_state(state_id: str = Body(..., embed=True), current_user: User = Depends(Authentication.get_current_user)):
+    Terra = TerraOps(current_user["private_token"])
+    response = Terra.unlock_terraform_state(state_id)
+    return response
+
+@app.delete("/terraform")
+async def delete_terra_state(state_id: str = Body(..., embed=True), current_user: User = Depends(Authentication.get_current_user)):
+    Terra = TerraOps(current_user["private_token"])
+    response = Terra.delete_terraform_state(state_id)
+    return response
 
 if __name__ == "__main__":
     import uvicorn

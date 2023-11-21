@@ -1,6 +1,7 @@
 import inquirer
 import os
 import ProjectOps, AuthOps
+from TerraOps import TerraOps
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,8 +10,13 @@ BASE = os.getenv('BASE')
 
 json_data = []
 json_list = {}
-AuthOps = AuthOps.AuthOps(BASE)
+AuthOps   = AuthOps.AuthOps(BASE)
+
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
 def login_screen():
+    clear_screen()
     login_menu_list = ['Login', 'Create User', 'Exit']
     TOKN=""
     questions = [
@@ -21,32 +27,50 @@ def login_screen():
         ),
     ]
     answer = inquirer.prompt(questions)['login']
+    clear_screen()
     if answer == 'Login':
         TOKN = AuthOps.user_login()
     elif answer == 'Create User':
-        AuthOps.user_create()
-        TOKN = AuthOps.user_login()
+        result = AuthOps.user_create()
+        if result:
+            clear_screen()
+            TOKN = AuthOps.user_login()
+        else:
+            print()
+            print("Invalid Input! Going back to the main menu...")
+            print()
+            login_screen()
     elif answer == "Exit":
+        clear_screen()
         exit(0)
     else:
         print("Something's Wrong")
         login_screen()
-    return TOKN
+    if TOKN != "NO":
+        return TOKN
+    else:
+        print()
+        print("Invalid Input! Going back to the main menu...")
+        print()
+        login_screen()
 TOKN = login_screen()
 ProjectList = ProjectOps.ProjectsList(BASE, json_list, TOKN)
+clear_screen()
 
 print("")
 print("Welcome!")
+print("")
 def main():
-    check_project_list('main')
     welcome_menu()
     
 def check_project_list(area):
+    clear_screen()
     if json_list:
         ProjectList.db_check(area)
         
 def welcome_menu():
-    welcome_menu_list = ['Add project', 'Remove project', 'Branch settings', 'Merge request settings', 'Clear list', 'Exit']
+    check_project_list('main')
+    welcome_menu_list = ['Add project', 'Remove project', 'Branch settings', 'Merge request settings', 'Clear list', 'Terraform', 'Exit']
     questions = [
         inquirer.List('welcome',
                     message="What would you like to do with the project list?",
@@ -70,7 +94,11 @@ def welcome_menu():
         mr_menu()
     elif answer == "Clear list":
         clean_project_list_file()
+    elif answer == "Terraform":
+        clear_screen()
+        terraform_menu()
     elif answer == "Exit":
+        clear_screen()
         exit(0)
     else:
         print("Try again...")
@@ -198,6 +226,84 @@ def mr_menu():
     else:
         main()
 
+def terraform_menu():
+    full_path  = ['group/project1', 'group/project2']
+    Terra      = TerraOps(BASE, TOKN, full_path)
+    user_input = input('Search: ')
+    if user_input=="" or user_input.isspace():
+            main()
+    else:
+        response = Terra.get_terraform_states(user_input)
+        print()
+        process_list = ['Lock', 'Unlock', 'Delete', 'Back to Main']
+        if response:
+            the_state = terraform_states(response)
+            print()
+            print('STATE    : ' + the_state)
+            print('LOCKED AT: ' + str(response[the_state]['lockedAt']))
+            print()
+            process = [
+                inquirer.List('process',
+                        message="What to do with %s?" % the_state,
+                        choices=process_list,
+                        carousel=True,
+                        ),
+            ]  
+            answer    = inquirer.prompt(process)['process']
+            if answer == "Lock":
+                output = Terra.lock_terraform_state(response[the_state]['id'], the_state)
+                if output.status_code == 200:
+                    terraform_menu()
+                else:
+                    print(output)
+                    terraform_menu()
+            elif answer == "Unlock":
+                output = Terra.unlock_terraform_state(response[the_state]['id'], the_state)
+                if output.status_code == 200:
+                    terraform_menu()
+                else:
+                    print(output)
+                    terraform_menu()
+            elif answer == "Delete":
+                if delete_terraform_state(the_state):
+                    output = Terra.delete_terraform_state(response[the_state]['id'], the_state)
+                    if output.status_code == 200:
+                        terraform_menu()
+                    else:
+                        print(output)
+                        terraform_menu()
+                else:
+                    terraform_menu()
+            elif answer == "Back to Main":
+                main()
+            else:
+                print("Something's Wrong...")
+                main()
+        else:
+            print("No result for "+user_input)
+            terraform_menu()
+
+def terraform_states(response: dict):
+    state_list   = sorted(list(response.keys()))
+    states = [
+        inquirer.List('statelist',
+                    message="Which State to Process?",
+                    choices=state_list,
+                    carousel=True,
+                    ),
+    ]
+    the_state = inquirer.prompt(states)['statelist']
+    return the_state
+    
+def delete_terraform_state(the_state):
+    question = [
+        inquirer.Confirm("confirm", 
+                      message="DELETE "+the_state+"?!?",
+                      default=False,
+        ),
+    ]
+    return inquirer.prompt(question)['confirm']
+
 def protect_a_branch():
     if json_list:
         print("")
@@ -231,7 +337,7 @@ def remove_from_list():
         main()
 
 def remove_branch_after_merge():
-    options = ['True', 'False', 'Back']
+    options   = ['True', 'False', 'Back']
     questions = [
         inquirer.List(
             'remove_branch',
@@ -294,6 +400,12 @@ def update_squash_option():
         mr_menu()
     else:
         ProjectList.update_squash_option(answer)
-
+        
+def print_invalid_input_back_to_main():
+    print()
+    print("Invalid Input! Going back to the main menu...")
+    print()
+    login_screen()
+    
 if __name__=="__main__":
     main()
