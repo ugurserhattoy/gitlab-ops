@@ -7,7 +7,7 @@ Gitlab operations...
 - ~~pipeline for gitlab~~ -> done
 - ~~external mongodb for user database~~ -> done
 - ~~kubernetes resources~~ -> done
-- terraform state search and delete
+- ~~terraform state search and delete~~ -> done
 - defining default credentials for cli
 - web ui
 
